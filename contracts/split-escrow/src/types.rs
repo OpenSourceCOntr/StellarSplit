@@ -7,7 +7,6 @@
 //! types as specified in issue #59.
 
 use soroban_sdk::{contracterror, contracttype, Address, Env, String, Vec};
-use soroban_sdk::{Address, Vec};
 // ============================================
 // Original Types (preserved for compatibility)
 // ============================================
@@ -86,10 +85,9 @@ pub struct Split {
 }
 
 /// Contract errors
-#[contracterror]
-/// Rewards status for user rewards
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[contracttype]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[repr(u32)]
 pub enum RewardsStatus {
     Active = 0,
     Claimed = 1,
@@ -219,11 +217,11 @@ pub struct PriceSubmission {
 
 /// Consensus price data
 #[contracttype]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ConsensusPrice {
     pub asset_pair: String,
     pub price: i128,
-    pub confidence: f64,
+    pub confidence: u32, // BPS (e.g. 9500 for 95%)
     pub participating_oracles: u32,
     pub timestamp: u64,
 }
@@ -254,7 +252,8 @@ pub struct BridgeTransaction {
     pub completed_at: Option<u64>,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
 pub enum Error {
     SplitNotFound = 1,
@@ -293,11 +292,7 @@ pub enum Error {
     ProofInvalid = 34,
 }
 
-impl From<&Error> for soroban_sdk::Error {
-    fn from(e: &Error) -> Self {
-        soroban_sdk::Error::from_contract_error(e.to_u32())
-    }
-}
+// No manual From implementation needed for #[contracterror]
 
 /// Configuration for the contract
 ///
@@ -472,6 +467,9 @@ pub struct SplitEscrow {
     /// List of participants and their payment details
     pub participants: Vec<EscrowParticipant>,
 
+    /// The requester of the split (usually same as creator or oracle)
+    pub requester: Address,
+
     /// Current status of the escrow
     pub status: EscrowStatus,
 
@@ -616,11 +614,12 @@ pub fn create_escrow(
 ) -> SplitEscrow {
     SplitEscrow {
         split_id,
-        creator,
+        creator: creator.clone(),
         description,
         total_amount,
         amount_collected: 0,
         participants,
+        requester: creator.clone(), // Use creator as default requester
         status: EscrowStatus::Active,
         deadline,
         created_at: env.ledger().timestamp(),

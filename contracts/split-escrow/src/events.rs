@@ -3,8 +3,7 @@
 //! I'm defining all contract events here for off-chain tracking and indexing.
 //! These events are crucial for the backend to sync with on-chain state.
 
-use soroban_sdk::{symbol_short, Address, Env, String};
-use soroban_sdk::contractevent;
+use soroban_sdk::{symbol_short, Symbol, Address, Env, String};
 
 /// Emit when the contract is initialized
 ///
@@ -94,7 +93,7 @@ pub fn emit_insurance_purchased(
     coverage_amount: i128,
 ) {
     env.events().publish(
-        (symbol_short!("ins_purchased"),),
+        (Symbol::new(env, "ins_purchased"),),
         (
             insurance_id.clone(),
             split_id.clone(),
@@ -114,7 +113,7 @@ pub fn emit_claim_filed(
     claim_amount: i128,
 ) {
     env.events().publish(
-        (symbol_short!("claim_filed"),),
+        (Symbol::new(env, "claim_filed"),),
         (
             claim_id.clone(),
             insurance_id.clone(),
@@ -133,7 +132,7 @@ pub fn emit_claim_processed(
     payout_amount: i128,
 ) {
     env.events().publish(
-        (symbol_short!("claim_processed"),),
+        (Symbol::new(env, "claim_processed"),),
         (
             claim_id.clone(),
             insurance_id.clone(),
@@ -151,7 +150,7 @@ pub fn emit_payout_made(
     amount: i128,
 ) {
     env.events().publish(
-        (symbol_short!("payout_made"),),
+        (Symbol::new(env, "payout_made"),),
         (claim_id.clone(), recipient.clone(), amount),
     );
 }
@@ -163,7 +162,7 @@ pub fn emit_payout_made(
 pub fn emit_activity_tracked(env: &Env, user: &Address, activity_type: &str, split_id: u64, amount: i128) {
     env.events()
         .publish(
-            (symbol_short!("activity_tracked"),),
+            (Symbol::new(env, "activity_tracked"),),
             (user.clone(), activity_type, split_id, amount)
         );
 }
@@ -174,7 +173,7 @@ pub fn emit_activity_tracked(env: &Env, user: &Address, activity_type: &str, spl
 pub fn emit_rewards_calculated(env: &Env, user: &Address, total_rewards: i128, available_rewards: i128) {
     env.events()
         .publish(
-            (symbol_short!("rewards_calculated"),),
+            (Symbol::new(env, "rewards_calculated"),),
             (user.clone(), total_rewards, available_rewards)
         );
 }
@@ -185,7 +184,7 @@ pub fn emit_rewards_calculated(env: &Env, user: &Address, total_rewards: i128, a
 pub fn emit_rewards_claimed(env: &Env, user: &Address, amount_claimed: i128) {
     env.events()
         .publish(
-            (symbol_short!("rewards_claimed"),),
+            (Symbol::new(env, "rewards_claimed"),),
             (user.clone(), amount_claimed)
         );
 }
@@ -196,7 +195,7 @@ pub fn emit_rewards_claimed(env: &Env, user: &Address, amount_claimed: i128) {
 pub fn emit_verification_submitted(env: &Env, verification_id: &String, split_id: &String, requester: &Address) {
     env.events()
         .publish(
-            (symbol_short!("verification_submitted"),),
+            (Symbol::new(env, "verification_submitted"),),
             (verification_id.clone(), split_id.clone(), requester.clone())
         );
 }
@@ -207,7 +206,7 @@ pub fn emit_verification_submitted(env: &Env, verification_id: &String, split_id
 pub fn emit_verification_completed(env: &Env, verification_id: &String, verified: bool, verifier: &Address) {
     env.events()
         .publish(
-            (symbol_short!("verification_completed"),),
+            (Symbol::new(env, "verification_completed"),),
             (verification_id.clone(), verified, verifier.clone())
         );
 }
@@ -218,7 +217,7 @@ pub fn emit_verification_completed(env: &Env, verification_id: &String, verified
 pub fn emit_swap_created(env: &Env, swap_id: &String, participant_a: &Address, participant_b: &Address, amount_a: i128, amount_b: i128) {
     env.events()
         .publish(
-            (symbol_short!("swap_created"),),
+            (Symbol::new(env, "swap_created"),),
             (swap_id.clone(), participant_a.clone(), participant_b.clone(), amount_a, amount_b)
         );
 }
@@ -229,7 +228,7 @@ pub fn emit_swap_created(env: &Env, swap_id: &String, participant_a: &Address, p
 pub fn emit_swap_executed(env: &Env, swap_id: &String, executor: &Address) {
     env.events()
         .publish(
-            (symbol_short!("swap_executed"),),
+            (Symbol::new(env, "swap_executed"),),
             (swap_id.clone(), executor.clone())
         );
 }
@@ -240,7 +239,7 @@ pub fn emit_swap_executed(env: &Env, swap_id: &String, executor: &Address) {
 pub fn emit_swap_refunded(env: &Env, swap_id: &String, refunder: &Address) {
     env.events()
         .publish(
-            (symbol_short!("swap_refunded"),),
+            (Symbol::new(env, "swap_refunded"),),
             (swap_id.clone(), refunder.clone())
         );
 }
@@ -251,7 +250,7 @@ pub fn emit_swap_refunded(env: &Env, swap_id: &String, refunder: &Address) {
 pub fn emit_oracle_registered(env: &Env, oracle_address: &Address, stake: i128) {
     env.events()
         .publish(
-            (symbol_short!("oracle_registered"),),
+            (Symbol::new(env, "oracle_registered"),),
             (oracle_address.clone(), stake)
         );
 }
@@ -262,7 +261,7 @@ pub fn emit_oracle_registered(env: &Env, oracle_address: &Address, stake: i128) 
 pub fn emit_price_submitted(env: &Env, oracle_address: &Address, asset_pair: &String, price: i128) {
     env.events()
         .publish(
-            (symbol_short!("price_submitted"),),
+            (Symbol::new(env, "price_submitted"),),
             (oracle_address.clone(), asset_pair.clone(), price)
         );
 }
@@ -270,10 +269,10 @@ pub fn emit_price_submitted(env: &Env, oracle_address: &Address, asset_pair: &St
 /// Emit when consensus price is calculated
 ///
 /// This event is emitted when the network reaches consensus on a price.
-pub fn emit_consensus_reached(env: &Env, asset_pair: &String, consensus_price: i128, confidence: f64, participating_oracles: u32) {
+pub fn emit_consensus_reached(env: &Env, asset_pair: &String, consensus_price: i128, confidence: u32, participating_oracles: u32) {
     env.events()
         .publish(
-            (symbol_short!("consensus_reached"),),
+            (Symbol::new(env, "consensus_reached"),),
             (asset_pair.clone(), consensus_price, confidence, participating_oracles)
         );
 }
@@ -284,7 +283,7 @@ pub fn emit_consensus_reached(env: &Env, asset_pair: &String, consensus_price: i
 pub fn emit_bridge_initiated(env: &Env, bridge_id: &String, source_chain: &String, destination_chain: &String, amount: i128, recipient: &String) {
     env.events()
         .publish(
-            (symbol_short!("bridge_initiated"),),
+            (Symbol::new(env, "bridge_initiated"),),
             (bridge_id.clone(), source_chain.clone(), destination_chain.clone(), amount, recipient.clone())
         );
 }
@@ -294,10 +293,7 @@ pub fn emit_bridge_initiated(env: &Env, bridge_id: &String, source_chain: &Strin
 /// This event is emitted when a bridge transaction is successfully completed.
 pub fn emit_bridge_completed(env: &Env, bridge_id: &String, recipient: &String) {
     env.events()
-        .publish(
-            (symbol_short!("bridge_completed"),),
-            (bridge_id.clone(), recipient.clone())
-        );
+        .publish((Symbol::new(env, "bridge_completed"),), (bridge_id.clone(), recipient.clone()));
 }
 
 /// Emit when bridge transaction is refunded
@@ -305,14 +301,7 @@ pub fn emit_bridge_completed(env: &Env, bridge_id: &String, recipient: &String) 
 /// This event is emitted when a bridge transaction is refunded.
 pub fn emit_bridge_refunded(env: &Env, bridge_id: &String, sender: &Address) {
     env.events()
-        .publish(
-            (symbol_short!("bridge_refunded"),),
-            (bridge_id.clone(), sender.clone())
-        );
+        .publish((Symbol::new(env, "bridge_refunded"),), (bridge_id.clone(), sender.clone()));
 }
 
-#[contractevent]
-pub fn escrow_created(split_id: String, creator: Address, total_amount: i128);
-
-#[contractevent]
-pub fn payment_received(split_id: String, participant: Address, amount: i128);
+// Removed invalid contractevent functions

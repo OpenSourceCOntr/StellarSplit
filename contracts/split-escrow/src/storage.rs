@@ -7,37 +7,9 @@
 //! escrow storage keys as specified in issue #59.
 
 use soroban_sdk::{contracttype, Address, Env, String, symbol_short, Vec, Symbol};
-use crate::types::{Split, SplitEscrow};
+use crate::types::*;
 
-
-const ADMIN: Symbol = symbol_short!("ADMIN");
-const INIT: Symbol = symbol_short!("INIT");
-
-pub fn is_initialized(env: &Env) -> bool {
-    env.storage().instance().has(&INIT)
-}
-
-pub fn set_initialized(env: &Env) {
-    env.storage().instance().set(&INIT, &true);
-}
-
-pub fn set_admin(env: &Env, admin: &Address) {
-    env.storage().instance().set(&ADMIN, admin);
-}
-
-pub fn get_admin(env: &Env) -> Address {
-    env.storage().instance().get(&ADMIN).unwrap()
-}
-
-pub fn save_escrow(env: &Env, escrow: &SplitEscrow) {
-    env.storage()
-        .persistent()
-        .set(&escrow.split_id, escrow);
-}
-
-pub fn get_escrow(env: &Env, split_id: &String) -> Option<SplitEscrow> {
-    env.storage().persistent().get(split_id)
-}
+// Redundant legacy helpers removed. We use DataKey/StorageKey now.
 
 // ============================================
 // Original Storage Keys
@@ -107,6 +79,9 @@ pub enum StorageKey {
 
     /// Maps insurance_id to claim_id (one-to-many)
     InsuranceClaims(String),
+
+    /// Contract pause state
+    Paused,
 }
 
 /// Time-to-live for persistent storage (about 1 year)
@@ -119,27 +94,32 @@ const LEDGER_TTL_THRESHOLD: u32 = 86_400;
 // Admin Storage Functions
 // ============================================
 
-/// Check if the admin has been set
 pub fn has_admin(env: &Env) -> bool {
-    env.storage().persistent().has(&DataKey::Admin)
+    env.storage().instance().has(&DataKey::Admin)
 }
 
-/// Get the contract admin address
 pub fn get_admin(env: &Env) -> Address {
-    env.storage()
-        .persistent()
-        .get(&DataKey::Admin)
-        .expect("Admin not set")
+    env.storage().instance().get(&DataKey::Admin).expect("Admin not set")
 }
 
-/// Set the contract admin address
 pub fn set_admin(env: &Env, admin: &Address) {
-    env.storage().persistent().set(&DataKey::Admin, admin);
-    env.storage().persistent().extend_ttl(
-        &DataKey::Admin,
-        LEDGER_TTL_THRESHOLD,
-        LEDGER_TTL_PERSISTENT,
-    );
+    env.storage().instance().set(&DataKey::Admin, admin);
+}
+
+pub fn is_initialized(env: &Env) -> bool {
+    env.storage().instance().has(&DataKey::Initialized)
+}
+
+pub fn set_initialized(env: &Env) {
+    env.storage().instance().set(&DataKey::Initialized, &true);
+}
+
+pub fn is_paused(env: &Env) -> bool {
+    env.storage().instance().get(&StorageKey::Paused).unwrap_or(false)
+}
+
+pub fn set_paused(env: &Env, paused: bool) {
+    env.storage().instance().set(&StorageKey::Paused, &paused);
 }
 
 // ============================================
@@ -253,13 +233,12 @@ pub fn increment_escrow_count(env: &Env) -> u64 {
     next
 }
 
-/// Get an escrow by split_id
-pub fn get_escrow(env: &Env, split_id: &String) -> SplitEscrow {
+// Redundant get_escrow removed
+
+/// Get an escrow record
+pub fn get_escrow(env: &Env, split_id: &String) -> Option<SplitEscrow> {
     let key = StorageKey::Escrow(split_id.clone());
-    env.storage()
-        .persistent()
-        .get(&key)
-        .expect("Escrow not found")
+    env.storage().persistent().get(&key)
 }
 
 /// Check if an escrow exists
@@ -476,6 +455,13 @@ pub fn add_insurance_claim(env: &Env, insurance_id: &String, claim_id: &String) 
         .extend_ttl(&key, LEDGER_TTL_THRESHOLD, LEDGER_TTL_PERSISTENT);
 }
 
+pub fn get_insurance_claims(env: &Env, insurance_id: &String) -> Vec<String> {
+    env.storage()
+        .persistent()
+        .get(&StorageKey::InsuranceClaims(insurance_id.clone()))
+        .unwrap_or_else(|| Vec::new(env))
+}
+
 /// Storage keys for rewards system
 #[derive(Clone)]
 #[contracttype]
@@ -530,6 +516,10 @@ pub enum OracleStorageKey {
     VerificationRequest(String),
     OracleConfig,
     VerificationCounter,
+    OracleNode(Address),
+    PriceSubmission(String, Address), // asset_pair, oracle_address
+    ConsensusPrice(String),
+    OracleCounter,
 }
 
 /// Get verification request
@@ -573,7 +563,7 @@ pub fn get_next_verification_id(env: &Env) -> String {
 }
 
 /// Helper to format number as string (reused from rewards)
-fn format_number_as_string(env: &Env, num: u64) -> String {
+pub fn format_number_as_string(env: &Env, num: u64) -> String {
     match num {
         0 => String::from_str(env, "0"),
         1 => String::from_str(env, "1"),
@@ -598,15 +588,6 @@ pub enum SwapStorageKey {
     SwapCounter,
 }
 
-/// Storage keys for oracle network
-#[derive(Clone)]
-#[contracttype]
-pub enum OracleStorageKey {
-    OracleNode(Address),
-    PriceSubmission(String, Address), // asset_pair, oracle_address
-    ConsensusPrice(String),
-    OracleCounter,
-}
 
 /// Storage keys for bridge transactions
 #[derive(Clone)]
@@ -724,20 +705,3 @@ pub fn get_next_bridge_id(env: &Env) -> String {
     format_number_as_string(&env, counter)
 }
 
-/// Helper to format number as string (reused from previous features)
-fn format_number_as_string(env: &Env, num: u64) -> String {
-    match num {
-        0 => String::from_str(env, "0"),
-        1 => String::from_str(env, "1"),
-        2 => String::from_str(env, "2"),
-        3 => String::from_str(env, "3"),
-        4 => String::from_str(env, "4"),
-        5 => String::from_str(env, "5"),
-        6 => String::from_str(env, "6"),
-        7 => String::from_str(env, "7"),
-        8 => String::from_str(env, "8"),
-        9 => String::from_str(env, "9"),
-        10 => String::from_str(env, "10"),
-        _ => String::from_str(env, "999"),
-    }
-}
