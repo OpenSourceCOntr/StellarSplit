@@ -1,9 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import 'reflect-metadata';
 import { AppModule } from './app.module';
+import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
+import { TypeOrmExceptionFilter } from './common/filters/typeorm-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -17,6 +19,15 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  // Global filters
+  app.useGlobalFilters(new GlobalHttpExceptionFilter(), new TypeOrmExceptionFilter());
+
+  // Enable URI versioning: /api/v1/...
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: '1',
+  });
 
   // Set global API prefix
   app.setGlobalPrefix('api');

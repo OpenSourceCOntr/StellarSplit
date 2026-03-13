@@ -10,6 +10,7 @@ import { Repository, LessThanOrEqual, IsNull } from "typeorm";
 import { RecurringSplit, RecurrenceFrequency } from "./recurring-split.entity";
 import { Split } from "../entities/split.entity";
 import { Participant } from "../entities/participant.entity";
+import { EventsGateway } from "../gateway/events.gateway";
 
 export interface CreateRecurringSplitDto {
   creatorId: string;
@@ -44,7 +45,8 @@ export class RecurringSplitsService {
     @InjectRepository(Split)
     private splitRepository: Repository<Split>,
     @InjectRepository(Participant)
-    private participantRepository: Repository<Participant>
+    private participantRepository: Repository<Participant>,
+    private readonly eventsGateway: EventsGateway,
   ) {}
 
   /**
@@ -293,7 +295,16 @@ export class RecurringSplitsService {
         return newParticipant;
       });
 
-      await this.participantRepository.save(participants);
+      const savedParticipants = await this.participantRepository.save(participants);
+      for (const participant of savedParticipants) {
+        this.eventsGateway.emitParticipantJoined(savedSplit.id, {
+          splitId: savedSplit.id,
+          participantId: participant.id,
+          amountOwed: participant.amountOwed,
+          status: participant.status,
+          timestamp: new Date().toISOString(),
+        });
+      }
     }
 
     // Update next occurrence

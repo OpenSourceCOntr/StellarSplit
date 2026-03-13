@@ -14,6 +14,7 @@ import { Participant } from "../entities/participant.entity";
 import { Split } from "../entities/split.entity";
 import { EmailService } from "../email/email.service";
 import { MultiCurrencyService } from "../multi-currency/multi-currency.service";
+import { EventsGateway } from "../gateway/events.gateway";
 
 @Injectable()
 export class PaymentProcessorService {
@@ -22,6 +23,7 @@ export class PaymentProcessorService {
   constructor(
     private readonly stellarService: StellarService,
     private readonly paymentGateway: PaymentGateway,
+    private readonly eventsGateway: EventsGateway,
     @InjectRepository(Payment) private paymentRepository: Repository<Payment>,
     @InjectRepository(Participant)
     private participantRepository: Repository<Participant>,
@@ -258,7 +260,7 @@ export class PaymentProcessorService {
       txHash,
       amount: verificationResult.amount,
       expected: participant.amountOwed,
-    });
+    }, splitId);
 
     // Invalidate analytics cache for this user and optionally refresh materialized views
     try {
@@ -301,7 +303,7 @@ export class PaymentProcessorService {
     this.sendPaymentNotification(participantId, "payment_confirmed", {
       txHash,
       amount: verificationResult.amount,
-    });
+    }, splitId);
 
     // Trigger Email Notification
     this.triggerPaymentConfirmationEmail(participantId, {
@@ -390,6 +392,8 @@ export class PaymentProcessorService {
     );
 
     // Send notification if split is now completed
+    this.sendSplitUpdateNotification(splitId, status, totalPaid);
+
     if (status === "completed") {
       this.sendSplitCompletedNotification(splitId);
     }
@@ -402,6 +406,7 @@ export class PaymentProcessorService {
     participantId: string,
     type: string,
     data: any,
+    splitId: string,
   ): void {
     // Emit to WebSocket gateway
     const roomId = `participant_${participantId}`;
@@ -409,6 +414,12 @@ export class PaymentProcessorService {
       type,
       data,
       timestamp: new Date(),
+    });
+    this.eventsGateway.emitPaymentReceived(splitId, {
+      participantId,
+      type,
+      ...data,
+      timestamp: new Date().toISOString(),
     });
 
     this.logger.log(
@@ -428,6 +439,11 @@ export class PaymentProcessorService {
       status: "completed",
       timestamp: new Date(),
     });
+    this.eventsGateway.emitSplitUpdated(splitId, {
+      splitId,
+      status: "completed",
+      timestamp: new Date().toISOString(),
+    });
 
     this.logger.log(
       `Sending split completed notification for split ${splitId}`,
@@ -435,6 +451,19 @@ export class PaymentProcessorService {
 
     // Trigger Email Notification for all participants
     this.triggerSplitCompletedEmail(splitId);
+  }
+
+  private sendSplitUpdateNotification(
+    splitId: string,
+    status: "active" | "completed" | "partial",
+    amountPaid: number,
+  ): void {
+    this.eventsGateway.emitSplitUpdated(splitId, {
+      splitId,
+      status,
+      amountPaid,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   /**

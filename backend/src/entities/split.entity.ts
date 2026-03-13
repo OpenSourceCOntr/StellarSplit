@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
   OneToMany,
 } from "typeorm";
 import { Item } from "./item.entity";
@@ -48,11 +49,18 @@ export class Split {
   @Column({ type: "varchar", length: 56, nullable: true })
   creatorWalletAddress?: string;
 
+  @Column({ type: "timestamp", nullable: true })
+  dueDate?: Date;
+
   @CreateDateColumn()
   createdAt!: Date;
 
   @UpdateDateColumn()
   updatedAt!: Date;
+
+  /** Soft delete: set when removed; records with this set are excluded from default queries. */
+  @DeleteDateColumn({ name: "deleted_at" })
+  deletedAt!: Date | null;
 
   @OneToMany(() => Item, (item) => item.split)
   items?: Item[];

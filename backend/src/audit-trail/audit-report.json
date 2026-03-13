@@ -1,0 +1,12 @@
+{
+  "generatedAt": "2026-02-26T02:33:01.527Z",
+  "totalEvents": 2,
+  "actions": [
+    "test",
+    "login"
+  ],
+  "users": [
+    "user1",
+    "user2"
+  ]
+}

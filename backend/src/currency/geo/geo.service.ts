@@ -1,12 +1,11 @@
-import { Injectable, HttpService } from '@nestjs/common';
-import { firstValueFrom } from 'rxjs';
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class GeoService {
   async detect(ip: string) {
     try {
       const response = await fetch(`http://ip-api.com/json/${ip}`);
-      const data = await response.json();
+      const data: any = await response.json();
 
       if (data.status !== 'success') {
         throw new Error('Geo detection failed');

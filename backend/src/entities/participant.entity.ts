@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Split } from './split.entity';
 
 @Entity('participants')
@@ -29,6 +29,10 @@ export class Participant {
 
   @UpdateDateColumn()
   updatedAt!: Date;
+
+  /** Soft delete: set when removed; records with this set are excluded from default queries. */
+  @DeleteDateColumn({ name: 'deleted_at' })
+  deletedAt!: Date | null;
 
   @ManyToOne(() => Split, split => split.id)
   @JoinColumn({ name: 'splitId' })

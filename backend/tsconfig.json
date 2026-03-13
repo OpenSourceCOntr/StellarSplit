@@ -17,10 +17,7 @@
     "emitDecoratorMetadata": true,
     "useDefineForClassFields": false,
     "baseUrl": "./src",
-    "paths": {
-      "@/*": ["./*"]
-    },
-    "types": ["jest"]
+    "paths": { "@/*": ["./*"] }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "backend/dist", "src/export"]

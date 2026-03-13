@@ -19,7 +19,7 @@ export class PaymentsService {
     private readonly stellarService: StellarService,
     private readonly paymentProcessorService: PaymentProcessorService,
     private readonly paymentGateway: PaymentGateway,
-  ) {}
+  ) { }
 
   /**
    * Submit a payment with Stellar transaction hash
@@ -81,9 +81,9 @@ export class PaymentsService {
   async getPaymentStatsForSplit(splitId: string) {
     const payments = await this.paymentRepository.find({ where: { splitId } });
     const totalPaid = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
-    
+
     const split = await this.splitRepository.findOne({ where: { id: splitId } });
-    
+
     if (!split) {
       throw new NotFoundException(`Split ${splitId} not found`);
     }
@@ -96,5 +96,44 @@ export class PaymentsService {
       paymentCount: payments.length,
       status: split.status,
     };
+  }
+
+  /**
+   * Auto-confirm a payment detected by Horizon polling
+   */
+  async autoConfirmPayment(txHash: string, memo: string) {
+    this.logger.log(`Auto-confirming payment for tx: ${txHash}, memo: ${memo}`);
+
+    // Parse the memo to find split and participant (format "splitId:participantId")
+    const [splitId, participantId] = memo.split(':');
+
+    if (!splitId || !participantId) {
+      this.logger.warn(`Invalid memo format: ${memo}`);
+      return;
+    }
+
+    const participant = await this.participantRepository.findOne({
+      where: { splitId, id: participantId },
+    });
+
+    if (!participant) {
+      this.logger.warn(`Participant ${participantId} not found in split ${splitId}`);
+      return;
+    }
+
+    const result = await this.paymentProcessorService.processPaymentSubmission(
+      splitId,
+      participantId,
+      txHash,
+    );
+
+    this.paymentGateway.emitPaymentStatusUpdate(splitId, {
+      type: 'PAYMENT_CONFIRMED',
+      participantId,
+      txHash,
+      status: 'paid',
+    });
+
+    return result;
   }
 }

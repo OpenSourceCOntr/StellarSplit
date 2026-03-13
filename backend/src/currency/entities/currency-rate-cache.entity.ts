@@ -3,23 +3,23 @@ import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 @Entity()
 export class CurrencyRateCache {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  baseCurrency: string;
+  baseCurrency!: string;
 
   @Column()
-  targetCurrency: string;
+  targetCurrency!: string;
 
   @Column('decimal', { precision: 18, scale: 8 })
-  rate: number;
+  rate!: number;
 
   @Column()
-  source: string;
+  source!: string;
 
   @Column()
-  fetchedAt: Date;
+  fetchedAt!: Date;
 
   @Column()
-  expiresAt: Date;
+  expiresAt!: Date;
 }
